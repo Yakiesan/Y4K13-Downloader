@@ -1,0 +1,27 @@
+name: Build Y4K13 Windows App
+on: [push, workflow_dispatch] # This lets you run it manually
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Tools
+        run: |
+          pip install customtkinter yt-dlp pyinstaller
+
+      - name: Create EXE
+        run: |
+          pyinstaller --onefile --windowed --name "Y4K13_Downloader" app.py
+
+      - name: Upload Finished App
+        uses: actions/upload-artifact@v4
+        with:
+          name: Y4K13-Windows-Exe
+          path: dist/Y4K13_Downloader.exe
