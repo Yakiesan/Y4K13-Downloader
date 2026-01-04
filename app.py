@@ -1,64 +1,80 @@
 import customtkinter as ctk
-import yt_dlp
-import threading
+from yt_dlp import YoutubeDL
 import os
 
-# --- CORE DOWNLOADING LOGIC ---
-def start_download():
-    url = url_input.get()
+def download_content():
+    url = url_entry.get()
+    choice = format_option.get() # Gets MP3, MP4, or PNG
+    
     if not url:
-        log.insert("end", "[-] ERROR: NO URL DETECTED\n", "red")
+        status_label.configure(text="Error: Paste a link first!", text_color="red")
         return
-    
-    # Run in a thread so the UI doesn't freeze while downloading
-    threading.Thread(target=dl_logic, args=(url,), daemon=True).start()
 
-def dl_logic(url):
-    log.insert("end", f"[*] INITIATING EXTRACTION: {url}\n")
-    
-    # yt-dlp settings
-    options = {
-        'format': 'best',
-        'outtmpl': '%(title)s.%(ext)s',
-        'quiet': True,
-        'no_warnings': True,
+    status_label.configure(text=f"[*] Processing {choice}...", text_color="yellow")
+    root.update()
+
+    # --- THE MAGIC SETTINGS ---
+    ydl_opts = {
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'nocheckcertificate': True,
+        'quiet': False,
+        'no_warnings': False,
     }
-    
+
     try:
-        with yt_dlp.YoutubeDL(options) as ydl:
+        if choice == "MP3 (Music)":
+            ydl_opts.update({
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
+                'outtmpl': '%(title)s.%(ext)s',
+            })
+        
+        elif choice == "MP4 (Video)":
+            ydl_opts.update({
+                'format': 'best[ext=mp4]',
+                'outtmpl': '%(title)s.%(ext)s',
+            })
+
+        elif choice == "PNG (Thumbnail)":
+            # For thumbnails, we just get the info and download the image
+            with YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                thumbnail_url = info['thumbnail']
+                import urllib.request
+                urllib.request.urlretrieve(thumbnail_url, f"{info['title']}.png")
+                status_label.configure(text="Success: PNG Saved!", text_color="green")
+                return
+
+        with YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        log.insert("end", "[+] DATA SUCCESSFULLY DOWNLOADED TO FOLDER\n", "green")
+        
+        status_label.configure(text=f"Success: {choice} Downloaded!", text_color="green")
+
     except Exception as e:
-        log.insert("end", f"[-] CRITICAL ERROR: {str(e)[:50]}...\n", "red")
+        status_label.configure(text=f"Error: Check link or Bot block", text_color="red")
+        print(f"Details: {e}")
 
-# --- UI DESIGN (Y4K13 THEME) ---
+# --- UI SETUP ---
 ctk.set_appearance_mode("dark")
-app = ctk.CTk()
-app.title("Y4K13 ANYTO SYSTEM")
-app.geometry("600x450")
+root = ctk.CTk()
+root.title("Y4K13 Ultimate Downloader")
+root.geometry("500x400")
 
-# Heading
-title = ctk.CTkLabel(app, text="Y4K13 DOWNLOADER v1.0", font=("Courier", 28, "bold"), text_color="#00FF00")
-title.pack(pady=20)
+label = ctk.CTkLabel(root, text="Y4K13 Downloader", font=("Arial", 24, "bold"))
+label.pack(pady=20)
 
-# URL Input
-url_input = ctk.CTkEntry(app, placeholder_text="PASTE URL (TIKTOK, IG, YT, ETC.)", 
-                         width=480, height=40, fg_color="#001100", 
-                         text_color="#00FF00", border_color="#00FF00")
-url_input.pack(pady=10)
+url_entry = ctk.CTkEntry(root, placeholder_text="Paste YouTube Link Here...", width=400)
+url_entry.pack(pady=10)
 
-# Execute Button
-btn = ctk.CTkButton(app, text="EXECUTE DOWNLOAD", font=("Courier", 16, "bold"),
-                    fg_color="#006600", hover_color="#004400", 
-                    text_color="white", width=200, height=45,
-                    command=start_download)
-btn.pack(pady=20)
+# The Dropdown for MP3, MP4, or PNG
+format_option = ctk.CTkComboBox(root, values=["MP3 (Music)", "MP4 (Video)", "PNG (Thumbnail)"], width=200)
+format_option.set("MP3 (Music)")
+format_option.pack(pady=10)
 
-# Console Log Box
-log = ctk.CTkTextbox(app, width=550, height=180, fg_color="#000000", 
-                     text_color="#00FF00", font=("Courier", 12),
-                     border_width=1, border_color="#003300")
-log.pack(pady=10)
-log.insert("end", "[SYSTEM ONLINE] WAITING FOR TARGET URL...\n")
+download_button = ctk.CTkButton(root, text="START DOWNLOAD", command=download_content, fg_color="green", hover_color="darkgreen")
+download_button.pack(pady=20)
 
-app.mainloop()
+status_label = ctk.CTkLabel(root, text="Waiting for Target URL...", text_color="gray")
+status_label.pack(pady=10)
+
+root.mainloop()
