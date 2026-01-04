@@ -1,98 +1,112 @@
 import customtkinter as ctk
 from yt_dlp import YoutubeDL
-import os
+import threading
 import urllib.request
+import os
+from PIL import Image
 
-def download_content():
-    url = url_entry.get()
-    choice = format_option.get()
-    
-    if not url:
-        status_label.configure(text="❌ Error: Paste a link first!", text_color="red")
-        return
+class Y4K13App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-    status_label.configure(text=f"[*] Processing {choice}... Please wait.", text_color="yellow")
-    root.update()
+        # Window Setup
+        self.title("Y4K13 Ultimate Downloader")
+        self.geometry("600x500")
+        self.configure(fg_color="#0a0a0a") # Deep black background
 
-    # Base settings to look like a real person, not a bot
-    ydl_opts = {
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'nocheckcertificate': True,
-        'quiet': False,
-        'no_warnings': False,
-        'ignoreerrors': True,
-        # This borrows your browser login to prove you are human:
-        'cookiesfrombrowser': ('chrome',), 
-    }
+        # Download Miku background if it doesn't exist
+        self.miku_path = "miku_bg.png"
+        if not os.path.exists(self.miku_path):
+            try:
+                # Using a cute Miku peaking image URL
+                miku_url = "https://i.imgur.com/39hN7m0.png" 
+                urllib.request.urlretrieve(miku_url, self.miku_path)
+            except: pass
 
-    try:
-        if choice == "MP3 (Music)":
-            ydl_opts.update({
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'outtmpl': '%(title)s.%(ext)s',
-            })
+        # --- UI ELEMENTS ---
         
-        elif choice == "MP4 (Video)":
-            ydl_opts.update({
-                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-                'outtmpl': '%(title)s.%(ext)s',
-            })
+        # Miku Image (Peaking from the bottom)
+        try:
+            self.miku_img = ctk.CTkImage(Image.open(self.miku_path), size=(200, 200))
+            self.miku_label = ctk.CTkLabel(self, image=self.miku_img, text="")
+            self.miku_label.place(relx=1.0, rely=1.0, anchor="se") # Bottom Right
+        except: pass
 
-        elif choice == "PNG (Thumbnail)":
+        # Title with Green Glow
+        self.title_label = ctk.CTkLabel(self, text="Y4K13 DOWNLOADER", 
+                                        font=("Orbitron", 32, "bold"), text_color="#2ecc71")
+        self.title_label.pack(pady=30)
+
+        # Input Field
+        self.url_entry = ctk.CTkEntry(self, placeholder_text="Paste Link Here...", 
+                                      width=400, height=45, border_color="#2ecc71",
+                                      fg_color="#1a1a1a")
+        self.url_entry.pack(pady=10)
+
+        # Dropdown
+        self.format_var = ctk.StringVar(value="MP3 (Music)")
+        self.format_menu = ctk.CTkComboBox(self, values=["MP3 (Music)", "MP4 (Video)", "PNG (Thumbnail)"],
+                                           variable=self.format_var, width=200, height=35,
+                                           button_color="#2ecc71", border_color="#2ecc71")
+        self.format_menu.pack(pady=10)
+
+        # Animated Progress Bar (Starts hidden)
+        self.progress = ctk.CTkProgressBar(self, width=400, progress_color="#2ecc71")
+        self.progress.set(0)
+        self.progress.pack(pady=20)
+
+        # Download Button
+        self.btn = ctk.CTkButton(self, text="DOWNLOAD NOW", command=self.start_thread,
+                                 fg_color="#2ecc71", hover_color="#27ae60", 
+                                 text_color="black", font=("Arial", 16, "bold"), height=50)
+        self.btn.pack(pady=10)
+
+        # Status
+        self.status = ctk.CTkLabel(self, text="READY TO ROCK", text_color="#2ecc71")
+        self.status.pack(pady=10)
+
+    def start_thread(self):
+        # Starts download in background so window doesn't freeze
+        thread = threading.Thread(target=self.download_logic)
+        thread.start()
+
+    def download_logic(self):
+        url = self.url_entry.get()
+        choice = self.format_var.get()
+        
+        if not url:
+            self.status.configure(text="⚠️ PASTE A LINK!", text_color="red")
+            return
+
+        self.status.configure(text="🌀 INITIATING BYPASS...", text_color="#2ecc71")
+        self.btn.configure(state="disabled")
+        self.progress.start() # Start animation
+
+        ydl_opts = {
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'nocheckcertificate': True,
+            'cookiesfrombrowser': ('chrome',), # Bypasses Bot Check
+            'quiet': True,
+        }
+
+        try:
+            if "MP3" in choice:
+                ydl_opts.update({'format': 'bestaudio/best', 'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]})
+            elif "MP4" in choice:
+                ydl_opts.update({'format': 'best[ext=mp4]'})
+            
             with YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                thumbnail_url = info['thumbnail']
-                # Download image using standard python library
-                file_name = f"{info['title']}.png".replace("/", "_") # Remove slashes from title
-                urllib.request.urlretrieve(thumbnail_url, file_name)
-                status_label.configure(text="✅ Success: PNG Saved!", text_color="green")
-                return
-
-        # Execute Download for MP3/MP4
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+                ydl.download([url])
+            
+            self.status.configure(text="✅ DOWNLOAD COMPLETE!", text_color="#2ecc71")
+        except Exception as e:
+            self.status.configure(text="❌ YOUTUBE BLOCKED THE BOT", text_color="red")
+            print(f"Error: {e}")
         
-        status_label.configure(text=f"✅ Success: {choice} Downloaded!", text_color="green")
+        self.progress.stop()
+        self.progress.set(1)
+        self.btn.configure(state="normal")
 
-    except Exception as e:
-        status_label.configure(text="❌ Error: YouTube Blocked this Request", text_color="red")
-        print(f"Error Details: {e}")
-
-# --- UI DESIGN ---
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
-
-root = ctk.CTk()
-root.title("Y4K13 Ultimate Downloader")
-root.geometry("500x450")
-
-# Title
-title_label = ctk.CTkLabel(root, text="Y4K13 DOWNLOADER", font=("Impact", 35))
-title_label.pack(pady=20)
-
-# URL Input
-url_entry = ctk.CTkEntry(root, placeholder_text="Paste YouTube URL here...", width=400, height=40)
-url_entry.pack(pady=10)
-
-# Format Selection Dropdown
-format_label = ctk.CTkLabel(root, text="Select Format:")
-format_label.pack()
-format_option = ctk.CTkComboBox(root, values=["MP3 (Music)", "MP4 (Video)", "PNG (Thumbnail)"], width=200)
-format_option.set("MP3 (Music)")
-format_option.pack(pady=10)
-
-# Download Button
-btn_download = ctk.CTkButton(root, text="START DOWNLOAD", command=download_content, 
-                             fg_color="#1f538d", hover_color="#14375e", width=200, height=45, font=("Arial", 14, "bold"))
-btn_download.pack(pady=25)
-
-# Status Label
-status_label = ctk.CTkLabel(root, text="SYSTEM ONLINE", font=("Arial", 12))
-status_label.pack(pady=10)
-
-root.mainloop()
+if __name__ == "__main__":
+    app = Y4K13App()
+    app.mainloop()
