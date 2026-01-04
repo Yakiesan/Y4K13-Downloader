@@ -6,20 +6,25 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install Pro Dependencies
+
+    - name: Install Dependencies
       run: |
+        python -m pip install --upgrade pip
         pip install "yt-dlp[default,curl-cffi]" customtkinter Pillow pyinstaller
-    - name: Compile Y4K13 EXE
-      run: |
-        python -m PyInstaller --noconfirm --onefile --windowed `
-        --add-data "miku_peak.png;." `
-        --collect-all customtkinter `
-        --name "Y4K13_Downloader" app.py
-    - uses: actions/upload-artifact@v4
+
+    - name: Build with PyInstaller
+      # Use a single line for the build command to avoid PowerShell line-break errors
+      run: pyinstaller --noconfirm --onefile --windowed --add-data "miku_peak.png;." --collect-all customtkinter --name "Y4K13_Downloader" app.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
       with:
-        name: Y4K13-Final-Product
+        name: Y4K13-Windows-Build
         path: dist/Y4K13_Downloader.exe
