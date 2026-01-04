@@ -1,4 +1,4 @@
-name: Build Y4K13 Ultimate
+name: Build Y4K13 Pro
 
 on: [push, workflow_dispatch]
 
@@ -10,14 +10,15 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install
-      run: pip install customtkinter yt-dlp Pillow pyinstaller
+    - name: Deps
+      run: pip install "yt-dlp[default,curl-cffi]" customtkinter Pillow pyinstaller
     - name: Build
       run: |
         pyinstaller --noconfirm --onefile --windowed `
-        --collect-all customtkinter --collect-all PIL `
-        --name "Y4K13_Ultimate" app.py
+        --add-data "miku_peak.png;." `
+        --collect-all customtkinter `
+        --name "Y4K13_Downloader" app.py
     - uses: actions/upload-artifact@v4
       with:
-        name: Y4K13-Power-App
-        path: dist/Y4K13_Ultimate.exe
+        name: Y4K13-App
+        path: dist/Y4K13_Downloader.exe

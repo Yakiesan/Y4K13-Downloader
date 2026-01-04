@@ -2,91 +2,101 @@ import customtkinter as ctk
 from yt_dlp import YoutubeDL
 import threading
 import os
+import sys
 from PIL import Image
 
-class Y4K13App(ctk.CTk):
+# Essential for the EXE to find Miku inside itself
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+class Y4K13_Downloader(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Y4K13 ULTIMATE - MIKU EDITION")
-        self.geometry("600x550")
-        self.configure(fg_color="#000000")
+        # YTMP3 Inspired Theme
+        self.title("Y4K13 - PRO DOWNLOADER")
+        self.geometry("700x500")
+        self.configure(fg_color="#121212")
 
-        # --- MIKU IMAGE FIX ---
-        # This looks for the image in the current folder
-        self.img_name = "miku_peak.png"
+        # Title Section
+        self.label = ctk.CTkLabel(self, text="Y4K13", font=("Arial Black", 55), text_color="#00D084")
+        self.label.pack(pady=(50, 5))
         
-        # UI Header
-        self.header = ctk.CTkLabel(self, text="Y4K13 DOWNLOADER", font=("Impact", 45), text_color="#00FF41")
-        self.header.pack(pady=(30, 0))
+        self.sub = ctk.CTkLabel(self, text="High-Speed Secure Extraction", font=("Consolas", 14), text_color="#777777")
+        self.sub.pack(pady=(0, 30))
+
+        # URL Input
+        self.url_var = ctk.StringVar()
+        self.entry = ctk.CTkEntry(self, placeholder_text="Paste your link here...", width=520, height=50, 
+                                  border_color="#00D084", fg_color="#1e1e1e", textvariable=self.url_var)
+        self.entry.pack(pady=10)
+
+        # Mode Selection
+        self.mode = ctk.StringVar(value="MP3")
+        self.mode_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.mode_frame.pack(pady=10)
+
+        self.rb_mp3 = ctk.CTkRadioButton(self.mode_frame, text="MP3", variable=self.mode, value="MP3", text_color="white", fg_color="#00D084", hover_color="#00b070")
+        self.rb_mp3.grid(row=0, column=0, padx=20)
+        self.rb_mp4 = ctk.CTkRadioButton(self.mode_frame, text="MP4", variable=self.mode, value="MP4", text_color="white", fg_color="#00D084", hover_color="#00b070")
+        self.rb_mp4.grid(row=0, column=1, padx=20)
+
+        # The Big Button
+        self.btn = ctk.CTkButton(self, text="CONVERT", width=180, height=50, corner_radius=8,
+                                 fg_color="#00D084", text_color="black", font=("Arial", 18, "bold"),
+                                 command=self.start_process)
+        self.btn.pack(pady=20)
+
+        self.status = ctk.CTkLabel(self, text="READY", text_color="#00D084", font=("Consolas", 12))
+        self.status.pack()
+
+        # --- MIKU PEAKING LOGIC ---
+        miku_img_path = resource_path("miku_peak.png")
+        if os.path.exists(miku_img_path):
+            img = Image.open(miku_img_path)
+            self.miku_ctk = ctk.CTkImage(light_image=img, dark_image=img, size=(250, 180))
+            self.miku_label = ctk.CTkLabel(self, image=self.miku_ctk, text="")
+            self.miku_label.place(relx=0.0, rely=1.0, anchor="sw")
+
+    def start_process(self):
+        self.btn.configure(state="disabled")
+        threading.Thread(target=self.download, daemon=True).start()
+
+    def download(self):
+        url = self.url_var.get()
+        if not url:
+            self.status.configure(text="❌ LINK MISSING", text_color="red")
+            self.btn.configure(state="normal")
+            return
+
+        self.status.configure(text="🛰️ BYPASSING SECURITY...", text_color="yellow")
         
-        self.status = ctk.CTkLabel(self, text="SYSTEM ONLINE", font=("Consolas", 12), text_color="#008F11")
-        self.status.pack(pady=(0, 20))
-
-        # URL Entry
-        self.url_entry = ctk.CTkEntry(self, placeholder_text="Paste Link Here...", 
-                                      width=450, height=50, border_color="#00FF41", fg_color="#0d0d0d")
-        self.url_entry.pack(pady=10)
-
-        # Format Dropdown
-        self.mode = ctk.StringVar(value="MP3 (Music)")
-        self.menu = ctk.CTkComboBox(self, values=["MP3 (Music)", "MP4 (Video)", "PNG (Thumbnail)"],
-                                    variable=self.mode, width=200, height=40,
-                                    button_color="#00FF41", border_color="#00FF41")
-        self.menu.pack(pady=10)
-
-        # Progress UI
-        self.progress_bar = ctk.CTkProgressBar(self, width=400, progress_color="#00FF41")
-        self.progress_bar.set(0)
-        self.progress_bar.pack(pady=15)
-
-        # Download Button
-        self.dl_btn = ctk.CTkButton(self, text="START EXTRACTION", command=self.start_thread,
-                                    fg_color="#00FF41", hover_color="#008F11", text_color="black",
-                                    font=("Arial", 18, "bold"), height=50)
-        self.dl_btn.pack(pady=10)
-
-        # --- MIKU PLACEMENT ---
-        if os.path.exists(self.img_name):
-            try:
-                raw_img = Image.open(self.img_name)
-                # Resize to fit corner nicely
-                self.miku_img = ctk.CTkImage(light_image=raw_img, dark_image=raw_img, size=(280, 200))
-                self.miku_label = ctk.CTkLabel(self, image=self.miku_img, text="")
-                # Place her specifically in the bottom right corner
-                self.miku_label.place(relx=1.0, rely=1.0, anchor="se")
-                print("Miku loaded successfully!")
-            except Exception as e:
-                print(f"Miku Error: {e}")
-        else:
-            print("Miku image not found in folder. Make sure miku_peak.png is there!")
-
-    def start_thread(self):
-        threading.Thread(target=self.download_now, daemon=True).start()
-
-    def download_now(self):
-        url = self.url_entry.get()
-        if not url: return
-        
-        self.status.configure(text="🛰️ BYPASSING BOT CHECK...", text_color="yellow")
-        self.progress_bar.start()
-
+        # PRO ANTI-BOT SETTINGS
         ydl_opts = {
-            'format': 'bestaudio/best' if "MP3" in self.mode.get() else 'best',
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'format': 'bestaudio/best' if self.mode.get() == "MP3" else 'best',
+            'impersonate': 'chrome', # Mimics real browser TLS/JA3 fingerprint
             'nocheckcertificate': True,
+            'quiet': True,
+            'no_warnings': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         }
+
+        if self.mode.get() == "MP3":
+            ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
 
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-            self.status.configure(text="✅ SUCCESS!", text_color="#00FF41")
-        except:
-            self.status.configure(text="❌ FAILED", text_color="red")
+            self.status.configure(text="✅ DONE: CHECK FOLDER", text_color="#00D084")
+        except Exception:
+            self.status.configure(text="❌ BLOCKED OR INVALID LINK", text_color="red")
         
-        self.progress_bar.stop()
-        self.progress_bar.set(1)
+        self.btn.configure(state="normal")
 
 if __name__ == "__main__":
-    app = Y4K13App()
+    app = Y4K13_Downloader()
     app.mainloop()
