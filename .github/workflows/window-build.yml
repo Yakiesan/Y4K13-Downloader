@@ -1,4 +1,4 @@
-name: Y4K13 No-PIL Build
+name: Y4K13 Universal Build
 
 on: [push, workflow_dispatch]
 
@@ -7,22 +7,21 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-
     - name: Install Dependencies
       run: |
-        pip install "yt-dlp[default,curl-cffi]" customtkinter pyinstaller
-
-    - name: Build Single EXE
-      # We removed --collect-all PIL entirely
-      run: pyinstaller --noconfirm --onefile --windowed --add-data "miku_peak.png;." --collect-all customtkinter --name "Y4K13_Downloader" app.py
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+        python -m pip install --upgrade pip
+        pip install "yt-dlp[default,curl-cffi]" customtkinter fake-useragent pyinstaller
+    - name: Compile Y4K13
+      run: |
+        pyinstaller --noconfirm --onefile --windowed `
+        --collect-all customtkinter `
+        --collect-all curl_cffi `
+        --hidden-import=_cffi_backend `
+        --name "Y4K13_Universal" app.py
+    - uses: actions/upload-artifact@v4
       with:
-        name: Y4K13-Application
-        path: dist/Y4K13_Downloader.exe
+        name: Y4K13-Universal-App
+        path: dist/Y4K13_Universal.exe
