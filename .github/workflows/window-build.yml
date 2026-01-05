@@ -1,4 +1,4 @@
-name: Y4K13 Ultimate Build
+name: Y4K13 Final Stable Build
 
 on: [push, workflow_dispatch]
 
@@ -10,18 +10,21 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - name: Install
+    - name: Install Libraries
       run: |
         python -m pip install --upgrade pip
         pip install "yt-dlp[default,curl-cffi]" customtkinter pyinstaller
-    - name: Build
+    - name: Compile to Stable Directory
       run: |
-        pyinstaller --noconfirm --onefile --windowed `
+        pyinstaller --noconfirm --onedir --windowed `
         --collect-all customtkinter `
         --collect-all curl_cffi `
         --hidden-import=_cffi_backend `
         --name "Y4K13_Downloader" app.py
+    - name: Create Distribution ZIP
+      run: |
+        powershell Compress-Archive -Path dist/Y4K13_Downloader -DestinationPath Y4K13_Stable.zip
     - uses: actions/upload-artifact@v4
       with:
-        name: Y4K13-Final-App
-        path: dist/Y4K13_Downloader.exe
+        name: Y4K13-Stable-App
+        path: Y4K13_Stable.zip
